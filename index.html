@@ -12,6 +12,7 @@
     <div class="brand"><span class="sigil">✦</span><div><small>ASCENSÃO · AVENTURA AUTOMÁTICA</small><h1>Eco dos Seis</h1></div></div>
     <div class="place"><span id="area">VILA DO AMANHECER</span><b id="room">CIDADE</b></div>
     <button id="switch-character" class="small-button" hidden>PERSONAGENS</button>
+    <button id="hide-ui" class="small-button" aria-pressed="false" title="Ocultar painéis e controles">◉ OCULTAR PAINÉIS</button>
     <button id="sound" class="icon-button" aria-label="Ativar música" title="Ativar música">♫</button>
   </header>
   <section class="stage" aria-label="Palco do jogo">
@@ -19,16 +20,19 @@
     <div class="stage-shade"></div>
     <div class="status-top" id="status-top" hidden>
       <div class="identity"><strong id="hero-name">Viajante</strong><span id="class-label">GUERREIRO</span><span>NÍV. <b id="level">1</b></span></div>
-      <div class="status-meters">
+      <div class="status-body"><div class="status-meters">
         <div class="meter"><span>❤</span><div><i id="hpbar"></i></div><b id="hp">100/100</b></div>
         <div class="meter"><span>✦</span><div><i id="manabar"></i></div><b id="mana">100/100</b></div>
         <div class="meter xp-meter"><span>XP</span><div><i id="xpbar"></i></div><b id="xp">0/20</b></div>
-      </div>
-      <div class="status-values"><span>⚔ <b id="physical-attack">4</b></span><span>✧ <b id="magic-attack">4</b></span><span>🛡 <b id="physical-defense">0</b>/<b id="magical-defense">0</b></span><span>● <b id="gold">0</b> GOLD</span></div>
+      </div><div class="wallet"><span>● <b id="gold">0</b><small>GOLD</small></span><span>◆ <b id="diamonds">0</b><small>DIAMANTES</small></span></div></div>
+      <div class="status-values"><span>⚔ <b id="physical-attack">4</b></span><span>✧ <b id="magic-attack">4</b></span><span>🛡 <b id="physical-defense">0</b>/<b id="magical-defense">0</b></span></div>
+      <div id="status-effect" class="status-effect" hidden>☠ ENVENENADO</div>
     </div>
     <div class="combat-readout" id="combat-readout" hidden><span>HERÓI <b id="hero-hit">0</b></span><span>MONSTRO F/M <b id="monster-hit">0/0</b></span><span>RECORDE <b id="depth">0</b></span></div>
     <div class="target-card" id="target-card" hidden><strong id="target-name">Criatura</strong><span id="target-element">Elemento</span><span id="target-weakness">Fraqueza</span><small id="target-attack">Ataque F/M 0/0</small></div>
     <div class="message-bar" id="message">Escolha um personagem para entrar na jornada.</div>
+    <div class="room-sign" id="room-sign" hidden><small id="room-chapter">JORNADA</small><strong id="room-display">SALA 01</strong><span id="room-subtitle">A aventura começa</span></div>
+    <div class="victory-banner" id="victory-banner" hidden><span>✦ VITÓRIA ✦</span><strong id="victory-title">Sala concluída</strong><small id="victory-reward">+0 gold</small></div>
     <section class="city-hub" id="city-hub" hidden aria-label="Preparação na cidade">
       <div class="hub-title"><small>VILA DO AMANHECER</small><strong>Prepare sua jornada</strong></div>
       <div class="hub-menu">
@@ -36,14 +40,22 @@
         <button data-window="bag"><span>▣</span><b>Bolsa</b></button>
         <button data-window="skills"><span>✧</span><b>Skills</b><em id="skill-points-badge"></em></button>
         <button data-window="defense"><span>⬟</span><b>Defesa</b><em id="defense-points-badge"></em></button>
+        <button data-window="portal" class="portal-hunt"><span>◈</span><b>Portal da Hunt</b></button>
       </div>
     </section>
     <div class="controls-dock" id="controls-dock" hidden>
-      <button id="left" aria-label="Segure para voltar à esquerda">◀ VOLTAR</button>
+      <button id="left" aria-label="Avançar automaticamente para a esquerda" aria-pressed="false">◀ RUN LEFT</button>
       <button id="run">RUN RIGHT ▶</button>
+      <button id="mode-toggle" aria-pressed="false">MODO AUTO</button>
       <button id="repeat" aria-pressed="false">↺ REPETIR <em id="repeat-state">OFF</em></button>
+      <button id="return-city">⌂ RETORNAR CIDADE</button>
     </div>
-    <div class="hotbar" id="hotbar" hidden aria-label="Dez atalhos para poções e futuras magias"></div>
+    <div id="manual-controls" class="manual-controls" hidden aria-label="Controles manuais da caçada">
+      <button id="manual-left" aria-label="Andar para a esquerda">◀</button>
+      <button id="manual-right" aria-label="Andar para a direita">▶</button>
+      <button id="manual-attack" aria-label="Atacar">⚔ ATACAR</button>
+    </div>
+    <div class="hotbar" id="hotbar" hidden aria-label="Dez atalhos automáticos para poções e skills"></div>
     <section class="window-backdrop" id="window-backdrop" hidden>
       <div class="game-window" role="dialog" aria-modal="true" aria-labelledby="window-title">
         <div class="window-head"><div><small>VILA DO AMANHECER</small><h2 id="window-title">Preparação</h2></div><button id="window-close" aria-label="Fechar janela">×</button></div>
@@ -67,5 +79,5 @@
       </div>
     </section>
   </section>
-  <script src="src/meta.js"></script><script src="src/main.js"></script>
+  <script src="src/skills.js"></script><script src="src/meta.js"></script><script src="src/chapters.js"></script><script src="src/sprite-bounds.js"></script><script src="src/main.js"></script>
 </main></body></html>

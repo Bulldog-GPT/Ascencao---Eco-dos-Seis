@@ -26,7 +26,7 @@ const POTIONS = {
   health:{id:'health',name:'Poção de vida',icon:'❤',price:9,restore:.35,resource:'hp'},
   mana:{id:'mana',name:'Poção de mana',icon:'✦',price:9,restore:.35,resource:'mana'}
 };
-const PROFILE_FIELDS = ['name','className','advantage','weakness','highest','hp','maxHp','mana','maxMana','xp','level','gold','basePhysical','baseMagical','physicalDefense','magicalDefense','physicalSkill','magicalSkill','skillPoints','defensePoints','repeat'];
+const PROFILE_FIELDS = ['name','className','advantage','weakness','highest','hp','maxHp','mana','maxMana','xp','level','gold','diamonds','basePhysical','baseMagical','physicalDefense','magicalDefense','physicalSkill','magicalSkill','skillPoints','defensePoints','repeat','roomHistory','skillResets'];
 const GEAR_SLOTS = {weapon:'Arma principal',shield:'Escudo',pants:'Calças',chest:'Peitoral',head:'Cabeça',boots:'Botas',necklace:'Colar'};
 const emptyGear = () => Object.fromEntries(Object.keys(GEAR_SLOTS).map(slot=>[slot,null]));
 const itemSlot = entry => entry.category==='armor'?'chest':entry.category;
@@ -34,18 +34,19 @@ const ITEM_ART = ['blade','staff','ember','wind','steel','moon','vest','cloak','
 const GEAR_ART = ['buckler','trousers','hood','boots','pendant'];
 function createMeta(state, hooks) {
   const $ = id => document.getElementById(id);
-  let profiles = [], active = null, owned = new Set(), gear = emptyGear();
+  let profiles = [], active = null, owned = new Set(), inventory = {}, gear = emptyGear();
   let potions = {health:0,mana:0}, hotbar = Array.from({length:10},()=>({itemId:null,threshold:40}));
-  let lastPotionAt = 0, soundOn = false, audio = null, note = 0;
+  let lastPotionAt = 0, soundOn = false, audio = null, note = 0, marketQuantity=1;
   const item = id => ITEMS.find(entry => entry.id === id);
   const current = () => profiles.find(profile => profile.id === active);
   const totalGold = () => Math.floor(state.gold).toLocaleString('pt-BR');
   function freshProfile(name, className, advantage, weakness) {
     return {id:'hero-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),
-      name,className,advantage,weakness,highest:0,hp:100,maxHp:100,mana:100,maxMana:100,xp:0,level:1,gold:0,
+      name,className,advantage,weakness,highest:0,hp:100,maxHp:100,mana:100,maxMana:100,xp:0,level:1,gold:0,diamonds:0,
       basePhysical:4,baseMagical:4,physicalDefense:0,magicalDefense:0,physicalSkill:0,magicalSkill:0,
-      skillPoints:0,defensePoints:0,repeat:false,owned:[],gear:emptyGear(),
-      potions:{health:2,mana:2},hotbar:Array.from({length:10},(_,index)=>({itemId:index===0?'health':index===1?'mana':null,threshold:40}))};
+      skillPoints:0,defensePoints:0,repeat:false,roomHistory:[],skillResets:{day:'',count:0},owned:[],inventory:{},gear:emptyGear(),
+      potions:{health:2,mana:2},hotbar:Array.from({length:10},(_,index)=>({itemId:index===0?'health':index===1?'mana':null,
+        skillId:index>=2&&index<7?HERO_SKILLS[className][index-2].id:null,threshold:40}))};
   }
   function sanitizeProfile(profile) {
     if (!profile || typeof profile.id !== 'string') return null;
@@ -56,18 +57,43 @@ function createMeta(state, hooks) {
     clean.name=String(clean.name||'Viajante').slice(0,18);
     clean.advantage=ELEMENTS[clean.advantage]?clean.advantage:'water';
     clean.weakness=ELEMENTS[clean.weakness]?clean.weakness:'fire';
+    clean.diamonds=Math.max(0,Math.floor(Number(profile.diamonds)||0));
+    clean.skillResets={day:String(profile.skillResets?.day||''),count:Math.max(0,Math.min(3,Math.floor(Number(profile.skillResets?.count)||0)))};
+    clean.roomHistory=Array.isArray(profile.roomHistory)?profile.roomHistory.slice(0,10).map(run=>({
+      room:Math.max(1,Math.min(201,Math.floor(Number(run?.room)||1))),
+      result:['Vitória','Derrota','Retirada','Empurrado'].includes(run?.result)?run.result:'Vitória',
+      seconds:Math.max(1,Math.floor(Number(run?.seconds)||1)),
+      damage:Math.max(0,Math.floor(Number(run?.damage)||0)),
+      gold:Math.max(0,Math.floor(Number(run?.gold)||0)),
+      kills:Math.max(0,Math.floor(Number(run?.kills)||0))})):[];
     clean.owned=Array.isArray(profile.owned)?profile.owned.filter(id=>!!item(id)):[];
+    clean.inventory={};
+    for(const entry of ITEMS) {
+      const count=Math.max(0,Math.floor(Number(profile.inventory?.[entry.id]??(clean.owned.includes(entry.id)?1:0))||0));
+      if(count) clean.inventory[entry.id]=count;
+    }
+    clean.owned=Object.keys(clean.inventory);
     clean.gear=emptyGear();
     for (const slot of Object.keys(GEAR_SLOTS)) {
       const id=profile.gear?.[slot]||(slot==='chest'?profile.gear?.armor:null);
-      if (clean.owned.includes(id)&&itemSlot(item(id))===slot) clean.gear[slot]=id;
+      const entry=item(id);
+      const vocation=clean.className==='mage'?'magical':'physical';
+      if (clean.owned.includes(id)&&entry&&itemSlot(entry)===slot&&
+          (slot!=='weapon'||entry.type===vocation)) clean.gear[slot]=id;
     }
     clean.potions={health:Math.max(0,Number(profile.potions?.health)||0),mana:Math.max(0,Number(profile.potions?.mana)||0)};
     clean.hotbar=Array.from({length:10},(_,index)=>{
       const slot=profile.hotbar?.[index]||{};
       const threshold=Number(slot.threshold);
-      return {itemId:POTIONS[slot.itemId]?slot.itemId:null,threshold:Number.isFinite(threshold)?Math.max(1,Math.min(99,threshold)):40};
+      return {itemId:POTIONS[slot.itemId]?slot.itemId:null,skillId:skillFor(clean.className,slot.skillId)?slot.skillId:null,
+        threshold:Number.isFinite(threshold)?Math.max(1,Math.min(99,threshold)):40};
     });
+    if(!clean.hotbar.some(slot=>slot.skillId)) {
+      for(const skill of HERO_SKILLS[clean.className]) {
+        const free=clean.hotbar.findIndex((slot,index)=>index>=2&&!slot.itemId&&!slot.skillId);
+        if(free>=0) clean.hotbar[free].skillId=skill.id;
+      }
+    }
     clean.needsElements=!!profile.needsElements;
     return clean;
   }
@@ -105,7 +131,7 @@ function createMeta(state, hooks) {
           migrated.mana=migrated.maxMana;
           migrated.skillPoints=level-1;
           migrated.defensePoints=level-1;
-          migrated.highest=Math.max(0,Math.min(100,Number(older.state.highest)||0));
+          migrated.highest=Math.max(0,Math.min(200,Number(older.state.highest)||0));
           migrated.gold=Math.max(0,Number(older.state.coins)||0);
           migrated.needsElements=true;
           profiles=[migrated];
@@ -122,6 +148,7 @@ function createMeta(state, hooks) {
     if (!profile) return;
     for (const key of PROFILE_FIELDS) profile[key]=state[key];
     profile.owned=[...owned];
+    profile.inventory={...inventory};
     profile.gear={...gear};
     profile.potions={...potions};
     profile.hotbar=hotbar.map(slot=>({...slot}));
@@ -137,6 +164,7 @@ function createMeta(state, hooks) {
     state.hp=Math.max(1,Math.min(state.maxHp,state.hp));
     state.mana=Math.max(0,Math.min(state.maxMana,state.mana));
     owned=new Set(profile.owned);
+    inventory={...profile.inventory};
     gear={...profile.gear};
     potions={...profile.potions};
     hotbar=profile.hotbar.map(slot=>({...slot}));
@@ -262,9 +290,14 @@ function createMeta(state, hooks) {
       .reduce((total,[,id])=>total+(item(id)?.[field]||0),0);
   }
   function closeWindow() {$('window-backdrop').hidden=true;}
+  function refreshWindow(render) {
+    const content=$('window-content'),scroll=content.scrollTop;
+    render();
+    content.scrollTop=scroll;
+  }
   function showWindow(section) {
     if (state.room!==0||!active) return;
-    const titles={market:'Mercado',bag:'Bolsa',skills:'Skills',defense:'Defesa',slots:'Atalhos'};
+    const titles={market:'Mercado',bag:'Bolsa',skills:'Skills',defense:'Defesa',slots:'Atalhos',portal:'Portal da Hunt'};
     if (!titles[section]) return;
     $('window-title').textContent=titles[section];
     $('window-backdrop').hidden=false;
@@ -272,6 +305,8 @@ function createMeta(state, hooks) {
     if (section==='bag') renderBag();
     if (section==='skills'||section==='defense') renderPoints(section);
     if (section==='slots') renderSlots();
+    if (section==='portal') renderPortal();
+    $('window-content').scrollTop=0;
   }
   function itemDescription(entry) {
     if (entry.category==='weapon') {
@@ -281,7 +316,20 @@ function createMeta(state, hooks) {
     }
     return GEAR_SLOTS[itemSlot(entry)]+' · Defesa física '+(entry.physicalDefense||0)+' · Defesa mágica '+(entry.magicalDefense||0);
   }
-  function makeCard(titleText,description,buttonText,onClick,disabled=false,spriteId=null) {
+  function itemComparison(entry) {
+    const signed=value=>value>=0?'+'+value:String(value);
+    if (entry.category==='weapon') {
+      const current=item(gear.weapon),oldF=current?.physical||0,oldM=current?.magical||0;
+      const newF=entry.physical||0,newM=entry.magical||0;
+      return 'Arma atual '+oldF+'/'+oldM+' → '+newF+'/'+newM+
+        ' · diferença F '+signed(newF-oldF)+' / M '+signed(newM-oldM);
+    }
+    const current=item(gear[itemSlot(entry)]),oldF=current?.physicalDefense||0,oldM=current?.magicalDefense||0;
+    const newF=entry.physicalDefense||0,newM=entry.magicalDefense||0;
+    return 'Defesa no slot '+oldF+'/'+oldM+' → '+newF+'/'+newM+
+      ' · diferença F '+signed(newF-oldF)+' / M '+signed(newM-oldM);
+  }
+  function makeCard(titleText,description,buttonText,onClick,disabled=false,spriteId=null,comparison='') {
     const card=document.createElement('article');card.className='item-card';
     if (spriteId) card.append(makeItemSprite(spriteId));
     const element=item(spriteId)?.element;
@@ -290,27 +338,84 @@ function createMeta(state, hooks) {
     const detail=document.createElement('p');detail.textContent=description;
     const button=document.createElement('button');button.textContent=buttonText;button.disabled=disabled;
     button.onclick=onClick;
-    card.append(title,detail,button);
+    card.append(title,detail);
+    if (comparison) {
+      const compare=document.createElement('small');compare.className='item-compare';
+      compare.textContent=comparison;card.append(compare);
+    }
+    card.append(button);
     return card;
   }
   function renderMarket() {
     const content=$('window-content');content.replaceChildren();
     const intro=document.createElement('p');intro.className='window-intro';
-    intro.textContent='Gold: '+totalGold()+' · Armas trazem seus próprios atributos e reservam espaço para magias futuras.';
+    intro.textContent='Suprimentos e equipamentos básicos. Equipamentos raros virão de drops de criaturas.';
+    const quantityLine=document.createElement('label');quantityLine.className='market-quantity';
+    quantityLine.textContent='Quantidade para comprar ou vender ';
+    const quantity=document.createElement('input');quantity.type='number';quantity.min='1';quantity.max='99';quantity.value=String(marketQuantity);
+    quantity.oninput=()=>{marketQuantity=Math.max(1,Math.min(99,Math.floor(Number(quantity.value)||1)));};
+    quantityLine.append(quantity);
+    const amount=()=>Math.max(1,Math.min(99,Math.floor(Number(quantity.value)||1)));
+    const heading=document.createElement('h3');heading.className='market-heading';heading.textContent='COMPRAR';
     const grid=document.createElement('div');grid.className='item-grid';
-    for (const entry of ITEMS) grid.append(makeCard(entry.name,itemDescription(entry),
-      owned.has(entry.id)?'NA BOLSA':'COMPRAR · '+entry.price+' GOLD',()=>{
-        if (owned.has(entry.id)||state.gold<entry.price) return;
-        state.gold-=entry.price;owned.add(entry.id);save();hooks.updateUI();renderMarket();
-      },owned.has(entry.id)||state.gold<entry.price,entry.id));
+    const vocation=state.className==='mage'?'magical':'physical';
+    const basics=new Set(['blade','staff','vest','cloak','buckler','trousers','hood','boots','pendant']);
+    for (const entry of ITEMS.filter(value=>basics.has(value.id)&&(value.category!=='weapon'||value.type===vocation)))
+      grid.append(makeCard(entry.name,itemDescription(entry),
+      'COMPRAR · '+entry.price+' GOLD cada',()=>{
+        const count=amount();if(state.gold<entry.price*count) {hooks.label('Gold insuficiente para '+count+' equipamentos.');return;}
+        state.gold-=entry.price*count;inventory[entry.id]=(inventory[entry.id]||0)+count;owned.add(entry.id);
+        save();hooks.updateUI();refreshWindow(renderMarket);
+      },state.gold<entry.price,entry.id,itemComparison(entry)));
     for (const potion of Object.values(POTIONS)) grid.append(makeCard(potion.name,
       'Restaura 35% de '+(potion.resource==='hp'?'vida':'mana')+'. Na barra, você define o percentual para uso automático.',
-      'COMPRAR · '+potion.price+' GOLD',()=>{
-        if (state.gold<potion.price) return;
-        state.gold-=potion.price;potions[potion.id]++;
-        save();hooks.updateUI();renderHotbar();renderMarket();
+      'COMPRAR · '+potion.price+' GOLD cada',()=>{
+        const count=amount();if(state.gold<potion.price*count) {hooks.label('Gold insuficiente para '+count+' poções.');return;}
+        state.gold-=potion.price*count;potions[potion.id]+=count;
+        save();hooks.updateUI();renderHotbar();refreshWindow(renderMarket);
       },state.gold<potion.price,potion.id));
-    content.append(intro,grid);
+    const sellHeading=document.createElement('h3');sellHeading.className='market-heading';sellHeading.textContent='VENDER';
+    const sellGrid=document.createElement('div');sellGrid.className='item-grid';
+    for(const entry of ITEMS.filter(value=>owned.has(value.id))) {
+      const value=Math.max(1,Math.floor(entry.price*.5));
+      sellGrid.append(makeCard(entry.name,itemDescription(entry)+' · '+inventory[entry.id]+' na bolsa',
+        'VENDER · +'+value+' GOLD cada',()=>{
+        const count=Math.min(amount(),inventory[entry.id]||0);if(!count)return;
+        inventory[entry.id]-=count;
+        if(!inventory[entry.id]) {delete inventory[entry.id];owned.delete(entry.id);
+          const slot=itemSlot(entry);if(gear[slot]===entry.id) gear[slot]=null;}
+        state.gold+=value*count;save();hooks.updateUI();refreshWindow(renderMarket);
+      },false,entry.id));
+    }
+    for(const potion of Object.values(POTIONS)) {
+      const value=Math.max(1,Math.floor(potion.price*.5));
+      sellGrid.append(makeCard(potion.name,potions[potion.id]+' na bolsa · '+value+' gold por unidade',
+        'VENDER · +'+value+' GOLD cada',()=>{
+          const count=Math.min(amount(),potions[potion.id]);if(!count)return;
+          potions[potion.id]-=count;state.gold+=count*value;
+          save();hooks.updateUI();renderHotbar();refreshWindow(renderMarket);
+        },potions[potion.id]<1,potion.id));
+    }
+    content.append(intro,quantityLine,heading,grid,sellHeading,sellGrid);
+  }
+  function renderSkillList() {
+    const content=$('window-content');
+      const heading=document.createElement('h3');heading.className='skill-list-title';
+      heading.textContent='Técnicas do '+(state.className==='mage'?'Mago':'Guerreiro');
+      const list=document.createElement('div');list.className='skill-list';
+      for(const technique of HERO_SKILLS[state.className]) {
+        const row=document.createElement('article');row.className='skill-entry';
+        row.style.setProperty('--skill-color',technique.color);
+        const icon=makeSkillIcon(technique);icon.classList.add('skill-entry-icon');
+        const copy=document.createElement('div');
+        const name=document.createElement('strong');name.textContent=technique.name+' · +'+technique.bonus;
+        const description=document.createElement('small');description.textContent=technique.description;
+        const cost=document.createElement('em');cost.textContent=technique.mana+' mana · '+(technique.cooldown/1000).toFixed(1)+' s';
+        copy.append(name,description,cost);row.append(icon,copy);list.append(row);
+      }
+      const action=document.createElement('button');action.className='wide-action';action.textContent='ORGANIZAR ATALHOS';
+      action.onclick=()=>showWindow('slots');
+      content.append(heading,list,action);
   }
   function renderBag() {
     const content=$('window-content');content.replaceChildren();
@@ -330,21 +435,23 @@ function createMeta(state, hooks) {
       button.title=equipped?'Retirar '+equipped.name:label+' vazio';
       button.setAttribute('aria-label',button.title);
       button.append(sprite,name);
-      if (equipped) button.onclick=()=>{gear[slot]=null;save();hooks.updateUI();renderBag();};
+      if (equipped) button.onclick=()=>{gear[slot]=null;save();hooks.updateUI();refreshWindow(renderBag);};
       else button.disabled=true;
       slotGrid.append(button);
     }
     paperdoll.append(heading,portrait,slotGrid);
-    const inventory=document.createElement('section');inventory.className='bag-inventory';
+    const inventoryPanel=document.createElement('section');inventoryPanel.className='bag-inventory';
     const inventoryHeading=document.createElement('h3');inventoryHeading.textContent='BOLSA';
     const help=document.createElement('p');help.className='window-intro';
     help.textContent='Escolha um item para equipar. Toque em um slot preenchido para retirar.';
     const grid=document.createElement('div');grid.className='item-grid';
     for (const entry of ITEMS.filter(value=>owned.has(value.id))) {
       const slot=itemSlot(entry),equipped=gear[slot]===entry.id;
-      grid.append(makeCard(entry.name,itemDescription(entry),equipped?'EQUIPADO':'EQUIPAR',()=>{
-        gear[slot]=entry.id;save();hooks.updateUI();renderBag();
-      },equipped,entry.id));
+      const compatible=entry.category!=='weapon'||entry.type===(state.className==='mage'?'magical':'physical');
+      grid.append(makeCard(entry.name+' ×'+(inventory[entry.id]||1),itemDescription(entry),!compatible?'OUTRA VOCAÇÃO':equipped?'EQUIPADO':'EQUIPAR',()=>{
+        if (!compatible) return;
+        gear[slot]=entry.id;save();hooks.updateUI();refreshWindow(renderBag);
+      },equipped||!compatible,entry.id,itemComparison(entry)));
     }
     const potionRow=document.createElement('div');potionRow.className='potion-row';
     for (const potion of Object.values(POTIONS)) {
@@ -355,11 +462,42 @@ function createMeta(state, hooks) {
     const shortcuts=document.createElement('button');shortcuts.className='wide-action';
     shortcuts.textContent='CONFIGURAR 10 ATALHOS E PERCENTUAIS';
     shortcuts.onclick=()=>showWindow('slots');
-    inventory.append(inventoryHeading,help);
-    if (grid.childElementCount) inventory.append(grid);
-    else {const empty=document.createElement('p');empty.className='window-intro';empty.textContent='A bolsa ainda não tem equipamentos. Visite o Mercado.';inventory.append(empty);}
-    inventory.append(potionRow,shortcuts);
-    layout.append(paperdoll,inventory);content.append(layout);
+    inventoryPanel.append(inventoryHeading,help);
+    if (grid.childElementCount) inventoryPanel.append(grid);
+    else {const empty=document.createElement('p');empty.className='window-intro';empty.textContent='A bolsa ainda não tem equipamentos. Visite o Mercado.';inventoryPanel.append(empty);}
+    inventoryPanel.append(potionRow,shortcuts);
+    layout.append(paperdoll,inventoryPanel);content.append(layout);
+  }
+  function renderPortal() {
+    const content=$('window-content');content.replaceChildren();
+    const intro=document.createElement('p');intro.className='window-intro';
+    intro.textContent='Escolha uma sala de 1 a 200. O portal abre na primeira sala da dezena: escolher 100 leva à 91; escolher 200 leva à 191.';
+    const panel=document.createElement('div');panel.className='portal-panel';
+    const label=document.createElement('label');label.textContent='SALA DESEJADA';
+    const input=document.createElement('input');input.type='number';input.min='1';input.max='200';input.step='1';
+    input.inputMode='numeric';input.value='1';
+    const preview=document.createElement('strong');preview.className='portal-preview';
+    const action=document.createElement('button');action.className='wide-action';
+    const update=()=>{
+      const target=Number(input.value),valid=Number.isInteger(target)&&target>=1&&target<=200;
+      const entry=valid?Math.floor((target-1)/10)*10+1:1;
+      preview.textContent=valid?'Entrada na sala '+entry+' · avance até a '+target:
+        'Escolha uma sala entre 1 e 200.';
+      action.disabled=!valid;
+      action.textContent=valid?'ENTRAR NA SALA '+entry:'ESCOLHA UMA SALA';
+    };
+    input.oninput=update;
+    action.onclick=()=>{if (!action.disabled) hooks.portalToRoom(Number(input.value));};
+    label.append(input);panel.append(label,preview,action);
+    const quick=document.createElement('div');quick.className='portal-grid';
+    for (let start=1;start<=191;start+=10) {
+      const end=start+9,button=document.createElement('button');
+      button.textContent=start+'–'+end;
+      button.title='Entrada na sala '+start;
+      button.onclick=()=>{input.value=String(end);update();};
+      quick.append(button);
+    }
+    update();content.append(intro,panel,quick);
   }
   function renderPoints(section) {
     const skill=section==='skills',available=skill?state.skillPoints:state.defensePoints;
@@ -374,24 +512,47 @@ function createMeta(state, hooks) {
       if (!(skill?state.skillPoints:state.defensePoints)) return;
       state[choice.key]++;
       if (skill) state.skillPoints--; else state.defensePoints--;
-      save();hooks.updateUI();renderPoints(section);
+      save();hooks.updateUI();refreshWindow(()=>renderPoints(section));
     },!available));
     content.append(intro,grid);
+    if(skill) {
+      renderSkillList();
+      const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
+      const used=state.skillResets?.day===today()?state.skillResets.count:0;
+      const invested=state.physicalSkill+state.magicalSkill;
+      const reset=document.createElement('button');reset.className='wide-action reset-skill';
+      reset.textContent='REALOCAR PONTOS · 5.000 GOLD · '+(3-used)+'/3 HOJE';
+      reset.disabled=used>=3||state.gold<5000||invested===0;
+      reset.onclick=()=>{
+        const day=today(),count=state.skillResets?.day===day?state.skillResets.count:0;
+        if(count>=3||state.gold<5000||state.physicalSkill+state.magicalSkill===0)return;
+        state.gold-=5000;state.skillPoints+=state.physicalSkill+state.magicalSkill;
+        state.physicalSkill=0;state.magicalSkill=0;state.skillResets={day,count:count+1};
+        save();hooks.updateUI();refreshWindow(()=>renderPoints(section));
+        hooks.label('Pontos de Skill devolvidos. Distribua-os novamente.');
+      };
+      content.append(reset);
+    }
   }
   function renderSlots() {
     const content=$('window-content');content.replaceChildren();
     const intro=document.createElement('p');intro.className='window-intro';
-    intro.textContent='Arraste nada: escolha a poção em cada slot. O percentual indica quando ela será usada automaticamente. Magias de arma poderão ocupar estes slots depois.';
+    intro.textContent='Poções e skills são usadas automaticamente na ordem dos slots, da esquerda para a direita. Você também pode ativá-las pelo botão ou pelas teclas 1–0.';
     const grid=document.createElement('div');grid.className='slot-config-grid';
     hotbar.forEach((slot,index)=>{
       const card=document.createElement('article');card.className='slot-config-card';
       const title=document.createElement('strong');title.textContent='SLOT '+(index+1);
       const select=document.createElement('select');
-      for (const [value,text] of [['','Vazio'],['health','Poção de vida'],['mana','Poção de mana']]) {
+      for (const [value,text] of [['','Vazio'],['health','Poção de vida'],['mana','Poção de mana'],
+        ...HERO_SKILLS[state.className].map(skill=>['skill:'+skill.id,skill.name+' · +'+skill.bonus])]) {
         const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);
       }
-      select.value=slot.itemId||'';
-      select.onchange=()=>{slot.itemId=select.value||null;save();renderHotbar();renderSlots();};
+      select.value=slot.skillId?'skill:'+slot.skillId:slot.itemId||'';
+      select.onchange=()=>{slot.skillId=select.value.startsWith('skill:')?select.value.slice(6):null;
+        slot.itemId=POTIONS[select.value]?select.value:null;save();renderHotbar();refreshWindow(renderSlots);};
+      const skill=skillFor(state.className,slot.skillId);
+      const detail=document.createElement('small');detail.className='slot-skill-detail';
+      detail.textContent=skill?skill.description+' · '+skill.mana+' mana · '+(skill.cooldown/1000).toFixed(1)+' s':'';
       const threshold=document.createElement('label');threshold.className='threshold-label';
       const titlePercent=document.createElement('span');titlePercent.textContent='Usar com '+slot.threshold+'% ou menos';
       const slider=document.createElement('input');slider.type='range';slider.min='1';slider.max='99';slider.value=slot.threshold;
@@ -399,7 +560,8 @@ function createMeta(state, hooks) {
       slider.oninput=()=>{slot.threshold=Number(slider.value);titlePercent.textContent='Usar com '+slot.threshold+'% ou menos';renderHotbar();};
       slider.onchange=()=>save();
       threshold.append(titlePercent,slider);
-      card.append(title,select,threshold);grid.append(card);
+      threshold.hidden=!slot.itemId;
+      card.append(title,select,detail,threshold);grid.append(card);
     });
     content.append(intro,grid);
   }
@@ -407,20 +569,25 @@ function createMeta(state, hooks) {
     const host=$('hotbar');host.replaceChildren();
     hotbar.forEach((slot,index)=>{
       const button=document.createElement('button');button.className='hotbar-slot';
-      const potion=POTIONS[slot.itemId];
+      const potion=POTIONS[slot.itemId],skill=skillFor(state.className,slot.skillId);
       const key=document.createElement('small');key.textContent=index===9?'0':String(index+1);
-      const icon=potion?makeItemSprite(potion.id):document.createElement('strong');
-      if (!potion) icon.textContent='+';
+      const icon=potion?makeItemSprite(potion.id):skill?makeSkillIcon(skill):document.createElement('strong');
+      if (!potion&&!skill) icon.textContent='+';
       const count=document.createElement('span');count.textContent=potion?String(potions[potion.id]):'';
-      const threshold=document.createElement('em');threshold.textContent=potion?slot.threshold+'%':'';
+      const threshold=document.createElement('em');threshold.textContent=potion?slot.threshold+'%':skill?skill.mana+' MP':'';
+      if(skill) {button.classList.add('skill-slot');button.dataset.skill=skill.id;
+        button.style.setProperty('--skill-color',skill.color);}
       button.append(key,icon,count,threshold);
-      button.title=potion?potion.name+' · automático em '+slot.threshold+'%':'Slot vazio · configure na cidade';
+      button.title=skill?skill.name+' · +'+skill.bonus+' dano · '+skill.mana+' mana · '+(skill.cooldown/1000).toFixed(1)+' s':
+        potion?potion.name+' · automático em '+slot.threshold+'%':'Slot vazio · configure na cidade';
+      button.setAttribute('aria-label',button.title);
       button.onclick=()=>state.room===0?showWindow('slots'):useSlot(index,false);
       host.append(button);
     });
   }
   function useSlot(index,automatic=false) {
     const slot=hotbar[index],potion=POTIONS[slot?.itemId];
+    if(slot?.skillId) return hooks.castSkill(slot.skillId,automatic);
     if (!potion||!active||potions[potion.id]<=0||state.hp<=0) return false;
     const now=performance.now();
     if (now-lastPotionAt<900) return false;
@@ -436,7 +603,7 @@ function createMeta(state, hooks) {
     hooks.updateUI();renderHotbar();save();soundFx('potion');
     return true;
   }
-  function autoUsePotions() {
+  function autoUseHotbar() {
     if (!active||state.room===0||state.mode==='recover') return;
     for (let index=0;index<10;index++) if (useSlot(index,true)) break;
   }
@@ -475,5 +642,5 @@ function createMeta(state, hooks) {
   $('profile-weakness').onchange=updateElementPreviews;
   $('switch-character').onclick=leaveProfile;
   loadProfiles();renderProfiles();
-  return {save,weapon,armorDefense,renderHotbar,showWindow,closeWindow,useSlot,autoUsePotions,soundFx};
+  return {save,weapon,armorDefense,renderHotbar,showWindow,closeWindow,useSlot,autoUseHotbar,soundFx};
 }
