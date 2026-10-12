@@ -202,14 +202,29 @@ button:disabled{opacity:.46;cursor:default}
 .profile-icon{width:68px;height:76px;border:none;border-radius:0;background-color:transparent}
 .profile-icon.warrior,.class-portrait.warrior,.paperdoll-hero.warrior{background-image:url('../public/assets/sprites/warrior-walk-v1.png')}
 .profile-icon.mage,.class-portrait.mage,.paperdoll-hero.mage{background-image:url('../public/assets/sprites/mage-walk-v1.png')}
+.profile-icon:is(.professor,.druid,.assassin,.bard,.thief,.barbarian),.class-portrait:is(.professor,.druid,.assassin,.bard,.thief,.barbarian),.paperdoll-hero:is(.professor,.druid,.assassin,.bard,.thief,.barbarian){background-image:url('../public/assets/sprites/six-vocations-v1.png');background-size:300% 200%}
+.profile-icon.professor,.class-portrait.professor,.paperdoll-hero.professor{background-position:0 0}
+.profile-icon.druid,.class-portrait.druid,.paperdoll-hero.druid{background-position:50% 0}
+.profile-icon.assassin,.class-portrait.assassin,.paperdoll-hero.assassin{background-position:100% 0}
+.profile-icon.bard,.class-portrait.bard,.paperdoll-hero.bard{background-position:0 100%}
+.profile-icon.thief,.class-portrait.thief,.paperdoll-hero.thief{background-position:50% 100%}
+.profile-icon.barbarian,.class-portrait.barbarian,.paperdoll-hero.barbarian{background-position:100% 100%}
+.profile-icon:is(.lancer,.alchemist,.monk,.summoner,.archer),.class-portrait:is(.lancer,.alchemist,.monk,.summoner,.archer),.paperdoll-hero:is(.lancer,.alchemist,.monk,.summoner,.archer){background-size:400% 200%;background-position:33.333% 0}
+.profile-icon.lancer,.class-portrait.lancer,.paperdoll-hero.lancer{background-image:url('../public/assets/sprites/lancer-motion-v1.png')}
+.profile-icon.alchemist,.class-portrait.alchemist,.paperdoll-hero.alchemist{background-image:url('../public/assets/sprites/alchemist-motion-v1.png')}
+.profile-icon.monk,.class-portrait.monk,.paperdoll-hero.monk{background-image:url('../public/assets/sprites/monk-motion-v1.png')}
+.profile-icon.summoner,.class-portrait.summoner,.paperdoll-hero.summoner{background-image:url('../public/assets/sprites/summoner-motion-v1.png')}
+.profile-icon.archer,.class-portrait.archer,.paperdoll-hero.archer{background-image:url('../public/assets/sprites/archer-motion-v1.png')}
+.item-sprite.item-glyph{display:grid;place-items:center;border-radius:10px;background:radial-gradient(circle at 30% 20%,#a9b5bd,#334755 70%);border:1px solid #d9c79d;color:#fff1ca;font-size:27px;text-shadow:0 2px 5px #10232d}
 .profile-elements{display:flex;align-items:center;gap:3px;color:#e8ddd0;font-size:9px}
 .profile-elements .element-icon{width:17px;height:22px}
-.class-choices{display:flex!important;gap:10px!important;padding:8px!important}
+.class-choices{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px!important;padding:8px!important}
 .class-choices label{position:relative;display:flex;align-items:center;gap:7px;flex:1;min-height:82px;padding:5px 8px;border:1px solid #adad9d;border-radius:7px;background:#2b414b;cursor:pointer;color:#ffebca;font:600 13px Cinzel,serif}
 .class-choices label:has(input:checked){border-color:#f4d092;background:#53615b;box-shadow:inset 0 0 0 1px #f4d09277,0 0 13px #e6bc7650}
 .class-choices label:has(input:disabled){cursor:default}
 .class-choices small{display:block;margin-top:4px;font:500 10px Inter,sans-serif;color:#d0ddd6}
 .class-portrait{width:61px;height:69px}
+@media(max-width:680px){.class-choices{grid-template-columns:repeat(2,minmax(0,1fr))}.class-choices label{min-width:0}}
 .element-select{display:flex;align-items:center;gap:5px;padding:3px 7px 3px 2px;border:1px solid #9bafa9;border-radius:6px;background:#18313d}
 .element-select select{flex:1;border:0!important;background:transparent!important}
 .bag-layout{display:grid;grid-template-columns:245px minmax(0,1fr);gap:14px}
@@ -293,8 +308,26 @@ button:disabled{opacity:.46;cursor:default}
 .skill-art{display:grid;place-items:center;flex:none;width:38px;height:38px;border:1px solid var(--skill-color);border-radius:9px;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--skill-color) 34%,#263d4a),#142b3a 75%);box-shadow:inset 0 1px #ffffff5c,0 0 10px color-mix(in srgb,var(--skill-color) 45%,transparent)}
 .skill-art svg{display:block;width:33px;height:33px;fill:none;stroke:var(--skill-color);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 2px var(--skill-color))}
 .skill-art svg .skill-icon-ring{stroke-width:1.1;stroke-dasharray:3 3;opacity:.72}
+.skill-art svg .skill-monogram{fill:#fff7df;stroke:#203747;stroke-width:.7px;paint-order:stroke;font:800 8px Inter,sans-serif;letter-spacing:.3px}
 .hotbar-slot .skill-art{position:absolute;left:50%;top:3px;right:auto;bottom:auto;transform:translateX(-50%);width:37px;height:37px}
 .skill-entry .skill-art{width:43px;height:43px}
+.market-wallet{position:sticky;top:-13px;z-index:2;display:flex;justify-content:space-between;gap:10px;margin-bottom:10px;padding:9px 12px;border:1px solid #e7c990;border-radius:7px;background:#1b3540f5;color:#f6d994;font-size:11px;font-weight:800;box-shadow:0 4px 12px #0819237d}
+.market-wallet span+span{color:#ace8f6}.market-wallet b{margin-left:6px;color:#fff5e2;font-size:13px}
+.market-feedback{position:sticky;top:40px;z-index:2;margin:8px 0;padding:9px 12px;border:1px solid #cbeab3;border-radius:7px;background:#375b4ae8;color:#f3ffe5;font-size:11px;font-weight:800;animation:market-pop .4s ease-out}
+.market-feedback.sell{border-color:#a8def2;background:#294b62}.market-feedback.error{border-color:#f2b5a5;background:#684547}
+@keyframes market-pop{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.market-card{min-height:152px}
+.market-card .market-stock{display:block;margin:0 0 7px;color:#bde0d2;font-size:10px}
+.market-card .market-price{display:block;margin:0 0 8px;color:#f4d796;font-size:10px}
+.market-action-row{display:grid;grid-template-columns:55px 1fr 1fr;gap:5px;align-items:center}
+.market-action-row input{width:100%;height:31px;padding:3px;border:1px solid #d9c398;border-radius:5px;background:#172f3b;color:#fff2dd;text-align:center;font-size:13px;font-weight:800}
+.market-action-row button{width:100%;min-width:0;padding:3px;font-size:9px}
+.market-action-row .sell-button{background:linear-gradient(#789aa1,#4b7889);color:#f3faff;border-color:#b5dfe8}
+.city-hub{top:14px;right:14px;bottom:auto;width:min(416px,calc(100% - 390px))}
+.stage:has(.city-hub:not([hidden])) .message-bar{display:none}
+@media(max-width:680px){.city-hub{top:116px;right:7px;left:auto;bottom:auto;width:calc(100% - 14px)}.market-action-row{grid-template-columns:48px 1fr 1fr}.market-action-row button{font-size:8px}}
+.reset-profiles{display:block;margin:8px auto 0;border:0;background:transparent;color:#f2b9a6;font:700 9px Cinzel,serif;text-decoration:underline;cursor:pointer}
+.portal-grid button.selected{border-color:#ffe0a0;background:linear-gradient(#887157,#5a5049)}
 .stage.cinema>:not(canvas):not(.stage-shade){display:none!important}
 .stage.cinema .stage-shade{opacity:.35}
 .shell:has(.stage.cinema) .topbar{justify-content:flex-end}
@@ -308,7 +341,7 @@ button:disabled{opacity:.46;cursor:default}
   .room-sign{top:calc((100vw - 14px)/2 + 8px);min-width:145px;padding:5px 15px}
   .room-sign strong{font-size:13px}.room-sign small,.room-sign span{font-size:6px}
   .victory-banner{top:32%;padding:9px 12px}.victory-banner span{font-size:17px}
-  .city-hub{bottom:165px}.hub-menu{grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}
+  .city-hub{bottom:auto}.hub-menu{grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}
   .hub-menu button,.hub-menu .portal-hunt{min-height:59px;padding:3px 1px}.hub-menu button span{width:24px;height:24px;font-size:15px}.hub-menu button b{font-size:7px}
   .window-backdrop{padding-top:5px}.game-window{height:min(460px,calc(100% - 10px))}
 }

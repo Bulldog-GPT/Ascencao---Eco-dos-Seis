@@ -6,12 +6,21 @@ const ELEMENTS = {
   air:{name:'Ar', icon:'❋', color:'#d6c9ef'}
 };
 const ITEMS = [
-  {id:'blade', category:'weapon', name:'Lâmina de Carvalho', icon:'⚔', price:12, type:'physical', element:'earth', physical:2, magical:0, spells:[]},
-  {id:'staff', category:'weapon', name:'Cajado de Orvalho', icon:'✧', price:12, type:'magical', element:'water', physical:0, magical:2, spells:[]},
-  {id:'ember', category:'weapon', name:'Sabre da Brasa', icon:'⚔', price:42, type:'physical', element:'fire', physical:4, magical:2, spells:[]},
-  {id:'wind', category:'weapon', name:'Bastão dos Ventos', icon:'✧', price:42, type:'magical', element:'air', physical:2, magical:4, spells:[]},
-  {id:'steel', category:'weapon', name:'Espada da Vigília', icon:'⚔', price:82, type:'physical', element:'air', physical:7, magical:0, spells:[]},
-  {id:'moon', category:'weapon', name:'Cajado da Lua', icon:'✧', price:82, type:'magical', element:'water', physical:0, magical:7, spells:[]},
+  {id:'blade', category:'weapon', name:'Lâmina de Carvalho', icon:'⚔', price:12, type:'physical', family:'sword', element:'earth', physical:2, magical:0, spells:[]},
+  {id:'staff', category:'weapon', name:'Cajado de Orvalho', icon:'✧', price:12, type:'magical', family:'staff', element:'water', physical:0, magical:2, spells:[]},
+  {id:'tome', category:'weapon', name:'Livro das Primeiras Letras', icon:'▤', price:12, type:'magical', family:'book', element:'air', physical:0, magical:2, spells:[]},
+  {id:'dagger', category:'weapon', name:'Adagas de Aprendiz', icon:'⚔', price:12, type:'physical', family:'dagger', element:'air', physical:2, magical:0, spells:[]},
+  {id:'lute', category:'weapon', name:'Alaúde do Caminho', icon:'♫', price:12, type:'hybrid', family:'instrument', element:'water', physical:1, magical:1, spells:[]},
+  {id:'axe', category:'weapon', name:'Machado de Lenhador', icon:'🪓', price:12, type:'physical', family:'axe', element:'earth', physical:3, magical:0, spells:[]},
+  {id:'spear',category:'weapon',name:'Lança de Freixo',icon:'♆',price:12,type:'physical',family:'spear',element:'air',physical:2,magical:0,spells:[]},
+  {id:'flask',category:'weapon',name:'Frasco Catalisador',icon:'⚗',price:12,type:'magical',family:'flask',element:'water',physical:0,magical:2,spells:[]},
+  {id:'gauntlet',category:'weapon',name:'Manoplas de Linho',icon:'✊',price:12,type:'physical',family:'gauntlet',element:'earth',physical:2,magical:0,spells:[]},
+  {id:'grimoire',category:'weapon',name:'Grimório dos Ecos',icon:'▤',price:12,type:'magical',family:'grimoire',element:'air',physical:0,magical:2,spells:[]},
+  {id:'bow',category:'weapon',name:'Arco de Bétula',icon:'➶',price:12,type:'physical',family:'bow',element:'air',physical:2,magical:0,spells:[]},
+  {id:'ember', category:'weapon', name:'Sabre da Brasa', icon:'⚔', price:42, type:'physical', family:'sword', element:'fire', physical:4, magical:2, spells:[]},
+  {id:'wind', category:'weapon', name:'Bastão dos Ventos', icon:'✧', price:42, type:'magical', family:'staff', element:'air', physical:2, magical:4, spells:[]},
+  {id:'steel', category:'weapon', name:'Espada da Vigília', icon:'⚔', price:82, type:'physical', family:'sword', element:'air', physical:7, magical:0, spells:[]},
+  {id:'moon', category:'weapon', name:'Cajado da Lua', icon:'✧', price:82, type:'magical', family:'staff', element:'water', physical:0, magical:7, spells:[]},
   {id:'vest', category:'armor', name:'Colete de Linho', icon:'⬟', price:16, physicalDefense:2, magicalDefense:0},
   {id:'cloak', category:'armor', name:'Manto Sereno', icon:'◈', price:16, physicalDefense:0, magicalDefense:2},
   {id:'mail', category:'armor', name:'Cota do Guardião', icon:'⬟', price:68, physicalDefense:5, magicalDefense:1},
@@ -26,31 +35,33 @@ const POTIONS = {
   health:{id:'health',name:'Poção de vida',icon:'❤',price:9,restore:.35,resource:'hp'},
   mana:{id:'mana',name:'Poção de mana',icon:'✦',price:9,restore:.35,resource:'mana'}
 };
-const PROFILE_FIELDS = ['name','className','advantage','weakness','highest','hp','maxHp','mana','maxMana','xp','level','gold','diamonds','basePhysical','baseMagical','physicalDefense','magicalDefense','physicalSkill','magicalSkill','skillPoints','defensePoints','repeat','roomHistory','skillResets'];
+const PROFILE_FIELDS = ['name','className','advantage','weakness','highest','clearedBosses','hp','maxHp','mana','maxMana','xp','level','gold','diamonds','basePhysical','baseMagical','physicalDefense','magicalDefense','physicalSkill','magicalSkill','skillPoints','defensePoints','repeat','roomHistory','skillResets'];
 const GEAR_SLOTS = {weapon:'Arma principal',shield:'Escudo',pants:'Calças',chest:'Peitoral',head:'Cabeça',boots:'Botas',necklace:'Colar'};
 const emptyGear = () => Object.fromEntries(Object.keys(GEAR_SLOTS).map(slot=>[slot,null]));
 const itemSlot = entry => entry.category==='armor'?'chest':entry.category;
+const compatibleWeapon=(entry,className)=>entry.category!=='weapon'||CLASS_INFO[className]?.weapons.includes(entry.family);
 const ITEM_ART = ['blade','staff','ember','wind','steel','moon','vest','cloak','mail','ward','health','mana'];
 const GEAR_ART = ['buckler','trousers','hood','boots','pendant'];
 function createMeta(state, hooks) {
   const $ = id => document.getElementById(id);
   let profiles = [], active = null, owned = new Set(), inventory = {}, gear = emptyGear();
   let potions = {health:0,mana:0}, hotbar = Array.from({length:10},()=>({itemId:null,threshold:40}));
-  let lastPotionAt = 0, soundOn = false, audio = null, note = 0, marketQuantity=1;
+  let lastPotionAt = 0, soundOn = false, audio = null, note = 0, marketFeedback=null;
   const item = id => ITEMS.find(entry => entry.id === id);
   const current = () => profiles.find(profile => profile.id === active);
   const totalGold = () => Math.floor(state.gold).toLocaleString('pt-BR');
   function freshProfile(name, className, advantage, weakness) {
+    const starter={warrior:'blade',mage:'staff',professor:'tome',druid:'staff',assassin:'dagger',bard:'lute',thief:'dagger',barbarian:'axe',lancer:'spear',alchemist:'flask',monk:'gauntlet',summoner:'grimoire',archer:'bow'}[className];
     return {id:'hero-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),
-      name,className,advantage,weakness,highest:0,hp:100,maxHp:100,mana:100,maxMana:100,xp:0,level:1,gold:0,diamonds:0,
+      name,className,advantage,weakness,highest:0,clearedBosses:[],hp:100,maxHp:100,mana:100,maxMana:100,xp:0,level:1,gold:0,diamonds:0,
       basePhysical:4,baseMagical:4,physicalDefense:0,magicalDefense:0,physicalSkill:0,magicalSkill:0,
-      skillPoints:0,defensePoints:0,repeat:false,roomHistory:[],skillResets:{day:'',count:0},owned:[],inventory:{},gear:emptyGear(),
+      skillPoints:0,defensePoints:0,repeat:false,roomHistory:[],skillResets:{day:'',count:0},owned:[starter],inventory:{[starter]:1},gear:{...emptyGear(),weapon:starter},
       potions:{health:2,mana:2},hotbar:Array.from({length:10},(_,index)=>({itemId:index===0?'health':index===1?'mana':null,
         skillId:index>=2&&index<7?HERO_SKILLS[className][index-2].id:null,threshold:40}))};
   }
   function sanitizeProfile(profile) {
     if (!profile || typeof profile.id !== 'string') return null;
-    const clean = freshProfile(String(profile.name||'Viajante').slice(0,18),profile.className==='mage'?'mage':'warrior',
+    const clean = freshProfile(String(profile.name||'Viajante').slice(0,18),CLASS_INFO[profile.className]?profile.className:'warrior',
       ELEMENTS[profile.advantage]?profile.advantage:'water',ELEMENTS[profile.weakness]?profile.weakness:'fire');
     clean.id=profile.id;
     for (const key of PROFILE_FIELDS) if (profile[key]!==undefined) clean[key]=profile[key];
@@ -58,6 +69,7 @@ function createMeta(state, hooks) {
     clean.advantage=ELEMENTS[clean.advantage]?clean.advantage:'water';
     clean.weakness=ELEMENTS[clean.weakness]?clean.weakness:'fire';
     clean.diamonds=Math.max(0,Math.floor(Number(profile.diamonds)||0));
+    clean.clearedBosses=Array.isArray(profile.clearedBosses)?profile.clearedBosses.filter(room=>window.GAME_CHAPTERS.some(chapter=>chapter.end===room)):[];
     clean.skillResets={day:String(profile.skillResets?.day||''),count:Math.max(0,Math.min(3,Math.floor(Number(profile.skillResets?.count)||0)))};
     clean.roomHistory=Array.isArray(profile.roomHistory)?profile.roomHistory.slice(0,10).map(run=>({
       room:Math.max(1,Math.min(201,Math.floor(Number(run?.room)||1))),
@@ -77,9 +89,8 @@ function createMeta(state, hooks) {
     for (const slot of Object.keys(GEAR_SLOTS)) {
       const id=profile.gear?.[slot]||(slot==='chest'?profile.gear?.armor:null);
       const entry=item(id);
-      const vocation=clean.className==='mage'?'magical':'physical';
       if (clean.owned.includes(id)&&entry&&itemSlot(entry)===slot&&
-          (slot!=='weapon'||entry.type===vocation)) clean.gear[slot]=id;
+          compatibleWeapon(entry,clean.className)) clean.gear[slot]=id;
     }
     clean.potions={health:Math.max(0,Number(profile.potions?.health)||0),mana:Math.max(0,Number(profile.potions?.mana)||0)};
     clean.hotbar=Array.from({length:10},(_,index)=>{
@@ -200,7 +211,7 @@ function createMeta(state, hooks) {
       const title=document.createElement('strong');
       title.textContent=profile.name;
       const detail=document.createElement('small');
-      detail.textContent=(profile.className==='mage'?'Mago':'Guerreiro')+' · Nível '+profile.level;
+      detail.textContent=CLASS_INFO[profile.className].name+' · Nível '+profile.level;
       const elements=document.createElement('span');elements.className='profile-elements';
       elements.append(makeElementIcon(profile.advantage),document.createTextNode(' vantagem · '),
         makeElementIcon(profile.weakness),document.createTextNode(' desvantagem'));
@@ -218,6 +229,7 @@ function createMeta(state, hooks) {
       list.append(empty);
     }
     $('new-profile').hidden=profiles.length>=2;
+    $('reset-profiles').hidden=!profiles.length;
   }
   function openForm(profile=null) {
     const form=$('profile-form');
@@ -226,9 +238,7 @@ function createMeta(state, hooks) {
     form.querySelector('h3').textContent=profile?'Configure seu herói':'Novo personagem';
     form.querySelector('button[type=submit]').textContent=profile?'SALVAR E ENTRAR':'CRIAR E ENTRAR';
     $('profile-name').value=profile?.name||'';
-    form.querySelector('input[value=warrior]').checked=(profile?.className||'warrior')==='warrior';
-    form.querySelector('input[value=mage]').checked=profile?.className==='mage';
-    form.querySelectorAll('input[name=profile-class]').forEach(input=>input.disabled=!!profile);
+    form.querySelectorAll('input[name=profile-class]').forEach(input=>{input.checked=input.value===(profile?.className||'warrior');input.disabled=!!profile;});
     $('profile-element').value=profile?.advantage||'water';
     $('profile-weakness').value=profile?.weakness||'fire';
     updateElementPreviews();
@@ -260,7 +270,7 @@ function createMeta(state, hooks) {
     } else if (gearIndex>=0) {
       sprite.classList.add('gear-art');
       sprite.style.backgroundPosition=gearIndex*25+'% 50%';
-    }
+    } else {sprite.classList.add('item-glyph');sprite.textContent=item(id)?.icon||'✦';}
     sprite.setAttribute('aria-hidden','true');
     return sprite;
   }
@@ -301,7 +311,7 @@ function createMeta(state, hooks) {
     if (!titles[section]) return;
     $('window-title').textContent=titles[section];
     $('window-backdrop').hidden=false;
-    if (section==='market') renderMarket();
+    if (section==='market') {marketFeedback=null;renderMarket();}
     if (section==='bag') renderBag();
     if (section==='skills'||section==='defense') renderPoints(section);
     if (section==='slots') renderSlots();
@@ -311,7 +321,7 @@ function createMeta(state, hooks) {
   function itemDescription(entry) {
     if (entry.category==='weapon') {
       const mixed=entry.physical&&entry.magical?'físico + mágico':entry.physical?'físico':'mágico';
-      return (entry.type==='physical'?'Arma física':'Arma mágica')+' · '+ELEMENTS[entry.element].name+
+      return (entry.type==='hybrid'?'Arma híbrida':entry.type==='physical'?'Arma física':'Arma mágica')+' · '+ELEMENTS[entry.element].name+
         ' · Dano '+mixed+': '+(entry.physical||0)+' / '+(entry.magical||0)+' · Magias: futuras';
     }
     return GEAR_SLOTS[itemSlot(entry)]+' · Defesa física '+(entry.physicalDefense||0)+' · Defesa mágica '+(entry.magicalDefense||0);
@@ -349,59 +359,57 @@ function createMeta(state, hooks) {
   function renderMarket() {
     const content=$('window-content');content.replaceChildren();
     const intro=document.createElement('p');intro.className='window-intro';
-    intro.textContent='Suprimentos e equipamentos básicos. Equipamentos raros virão de drops de criaturas.';
-    const quantityLine=document.createElement('label');quantityLine.className='market-quantity';
-    quantityLine.textContent='Quantidade para comprar ou vender ';
-    const quantity=document.createElement('input');quantity.type='number';quantity.min='1';quantity.max='99';quantity.value=String(marketQuantity);
-    quantity.oninput=()=>{marketQuantity=Math.max(1,Math.min(99,Math.floor(Number(quantity.value)||1)));};
-    quantityLine.append(quantity);
-    const amount=()=>Math.max(1,Math.min(99,Math.floor(Number(quantity.value)||1)));
-    const heading=document.createElement('h3');heading.className='market-heading';heading.textContent='COMPRAR';
+    intro.textContent='Compre suprimentos básicos ou venda itens da bolsa. Equipamentos raros virão de drops.';
+    const wallet=document.createElement('div');wallet.className='market-wallet';
+    wallet.innerHTML='<span>● GOLD <b></b></span><span>◆ DIAMANTES <b></b></span>';
+    wallet.querySelectorAll('b')[0].textContent=totalGold();
+    wallet.querySelectorAll('b')[1].textContent=Math.floor(state.diamonds).toLocaleString('pt-BR');
+    content.append(intro,wallet);
+    if(marketFeedback) {const note=document.createElement('div');note.className='market-feedback '+marketFeedback.kind;
+      note.textContent=marketFeedback.text;content.append(note);}
     const grid=document.createElement('div');grid.className='item-grid';
-    const vocation=state.className==='mage'?'magical':'physical';
-    const basics=new Set(['blade','staff','vest','cloak','buckler','trousers','hood','boots','pendant']);
-    for (const entry of ITEMS.filter(value=>basics.has(value.id)&&(value.category!=='weapon'||value.type===vocation)))
-      grid.append(makeCard(entry.name,itemDescription(entry),
-      'COMPRAR · '+entry.price+' GOLD cada',()=>{
-        const count=amount();if(state.gold<entry.price*count) {hooks.label('Gold insuficiente para '+count+' equipamentos.');return;}
-        state.gold-=entry.price*count;inventory[entry.id]=(inventory[entry.id]||0)+count;owned.add(entry.id);
-        save();hooks.updateUI();refreshWindow(renderMarket);
-      },state.gold<entry.price,entry.id,itemComparison(entry)));
-    for (const potion of Object.values(POTIONS)) grid.append(makeCard(potion.name,
-      'Restaura 35% de '+(potion.resource==='hp'?'vida':'mana')+'. Na barra, você define o percentual para uso automático.',
-      'COMPRAR · '+potion.price+' GOLD cada',()=>{
-        const count=amount();if(state.gold<potion.price*count) {hooks.label('Gold insuficiente para '+count+' poções.');return;}
-        state.gold-=potion.price*count;potions[potion.id]+=count;
-        save();hooks.updateUI();renderHotbar();refreshWindow(renderMarket);
-      },state.gold<potion.price,potion.id));
-    const sellHeading=document.createElement('h3');sellHeading.className='market-heading';sellHeading.textContent='VENDER';
-    const sellGrid=document.createElement('div');sellGrid.className='item-grid';
-    for(const entry of ITEMS.filter(value=>owned.has(value.id))) {
-      const value=Math.max(1,Math.floor(entry.price*.5));
-      sellGrid.append(makeCard(entry.name,itemDescription(entry)+' · '+inventory[entry.id]+' na bolsa',
-        'VENDER · +'+value+' GOLD cada',()=>{
-        const count=Math.min(amount(),inventory[entry.id]||0);if(!count)return;
-        inventory[entry.id]-=count;
-        if(!inventory[entry.id]) {delete inventory[entry.id];owned.delete(entry.id);
-          const slot=itemSlot(entry);if(gear[slot]===entry.id) gear[slot]=null;}
-        state.gold+=value*count;save();hooks.updateUI();refreshWindow(renderMarket);
-      },false,entry.id));
+    const basics=new Set(['blade','staff','tome','dagger','lute','axe','spear','flask','gauntlet','grimoire','bow','vest','cloak','buckler','trousers','hood','boots','pendant']);
+    const entries=[...ITEMS.filter(entry=>(basics.has(entry.id)||owned.has(entry.id))&&
+      (compatibleWeapon(entry,state.className)||owned.has(entry.id))),...Object.values(POTIONS)];
+    for(const entry of entries) {
+      const potion=!!POTIONS[entry.id],buyable=potion||basics.has(entry.id)&&compatibleWeapon(entry,state.className);
+      const have=potion?potions[entry.id]:inventory[entry.id]||0;
+      const card=document.createElement('article');card.className='item-card market-card';
+      card.append(makeItemSprite(entry.id));
+      const title=document.createElement('strong');title.textContent=entry.name;
+      const detail=document.createElement('p');detail.textContent=potion?'Restaura 35% de '+(entry.resource==='hp'?'vida':'mana')+'.':itemDescription(entry);
+      const stock=document.createElement('small');stock.className='market-stock';stock.textContent='Na bolsa: '+have;
+      const priceTag=document.createElement('small');priceTag.className='market-price';
+      priceTag.textContent='Compra '+entry.price+' gold · venda '+Math.max(1,Math.floor(entry.price*.5))+' gold cada';
+      const row=document.createElement('div');row.className='market-action-row';
+      const quantity=document.createElement('input');quantity.type='number';quantity.min='1';quantity.max='99';quantity.value='1';quantity.inputMode='numeric';quantity.setAttribute('aria-label','Quantidade de '+entry.name);
+      const amount=()=>Math.max(1,Math.min(99,Math.floor(Number(quantity.value)||1)));
+      const buy=document.createElement('button');buy.textContent='COMPRAR';buy.disabled=!buyable||state.gold<entry.price;
+      const sell=document.createElement('button');sell.textContent='VENDER';sell.className='sell-button';sell.disabled=!have;
+      buy.onclick=()=>{const count=amount(),cost=count*entry.price;
+        if(state.gold<cost){marketFeedback={kind:'error',text:'Gold insuficiente para '+count+' × '+entry.name+'.'};refreshWindow(renderMarket);return;}
+        state.gold-=cost;
+        if(potion) potions[entry.id]+=count;
+        else {inventory[entry.id]=(inventory[entry.id]||0)+count;owned.add(entry.id);}
+        marketFeedback={kind:'buy',text:'✦ Compra realizada · '+count+' × '+entry.name+' · −'+cost+' gold'};
+        save();hooks.updateUI();renderHotbar();refreshWindow(renderMarket);soundFx('potion');
+      };
+      sell.onclick=()=>{const count=Math.min(amount(),potion?potions[entry.id]:inventory[entry.id]||0);if(!count)return;
+        const price=Math.max(1,Math.floor(entry.price*.5))*count;
+        if(potion) potions[entry.id]-=count;
+        else {inventory[entry.id]-=count;if(!inventory[entry.id]){delete inventory[entry.id];owned.delete(entry.id);
+          const slot=itemSlot(entry);if(gear[slot]===entry.id) gear[slot]=null;}}
+        state.gold+=price;marketFeedback={kind:'sell',text:'✦ Venda realizada · '+count+' × '+entry.name+' · +'+price+' gold'};
+        save();hooks.updateUI();renderHotbar();refreshWindow(renderMarket);soundFx('win');
+      };
+      row.append(quantity,buy,sell);card.append(title,detail,stock,priceTag,row);grid.append(card);
     }
-    for(const potion of Object.values(POTIONS)) {
-      const value=Math.max(1,Math.floor(potion.price*.5));
-      sellGrid.append(makeCard(potion.name,potions[potion.id]+' na bolsa · '+value+' gold por unidade',
-        'VENDER · +'+value+' GOLD cada',()=>{
-          const count=Math.min(amount(),potions[potion.id]);if(!count)return;
-          potions[potion.id]-=count;state.gold+=count*value;
-          save();hooks.updateUI();renderHotbar();refreshWindow(renderMarket);
-        },potions[potion.id]<1,potion.id));
-    }
-    content.append(intro,quantityLine,heading,grid,sellHeading,sellGrid);
+    content.append(grid);
   }
   function renderSkillList() {
     const content=$('window-content');
       const heading=document.createElement('h3');heading.className='skill-list-title';
-      heading.textContent='Técnicas do '+(state.className==='mage'?'Mago':'Guerreiro');
+      heading.textContent='Técnicas do '+CLASS_INFO[state.className].name;
       const list=document.createElement('div');list.className='skill-list';
       for(const technique of HERO_SKILLS[state.className]) {
         const row=document.createElement('article');row.className='skill-entry';
@@ -447,7 +455,7 @@ function createMeta(state, hooks) {
     const grid=document.createElement('div');grid.className='item-grid';
     for (const entry of ITEMS.filter(value=>owned.has(value.id))) {
       const slot=itemSlot(entry),equipped=gear[slot]===entry.id;
-      const compatible=entry.category!=='weapon'||entry.type===(state.className==='mage'?'magical':'physical');
+      const compatible=compatibleWeapon(entry,state.className);
       grid.append(makeCard(entry.name+' ×'+(inventory[entry.id]||1),itemDescription(entry),!compatible?'OUTRA VOCAÇÃO':equipped?'EQUIPADO':'EQUIPAR',()=>{
         if (!compatible) return;
         gear[slot]=entry.id;save();hooks.updateUI();refreshWindow(renderBag);
@@ -471,30 +479,22 @@ function createMeta(state, hooks) {
   function renderPortal() {
     const content=$('window-content');content.replaceChildren();
     const intro=document.createElement('p');intro.className='window-intro';
-    intro.textContent='Escolha uma sala de 1 a 200. O portal abre na primeira sala da dezena: escolher 100 leva à 91; escolher 200 leva à 191.';
+    intro.textContent='O portal abre somente o início de cada conto. Derrote o miniboss do conto anterior para liberar o próximo.';
     const panel=document.createElement('div');panel.className='portal-panel';
-    const label=document.createElement('label');label.textContent='SALA DESEJADA';
-    const input=document.createElement('input');input.type='number';input.min='1';input.max='200';input.step='1';
-    input.inputMode='numeric';input.value='1';
     const preview=document.createElement('strong');preview.className='portal-preview';
     const action=document.createElement('button');action.className='wide-action';
-    const update=()=>{
-      const target=Number(input.value),valid=Number.isInteger(target)&&target>=1&&target<=200;
-      const entry=valid?Math.floor((target-1)/10)*10+1:1;
-      preview.textContent=valid?'Entrada na sala '+entry+' · avance até a '+target:
-        'Escolha uma sala entre 1 e 200.';
-      action.disabled=!valid;
-      action.textContent=valid?'ENTRAR NA SALA '+entry:'ESCOLHA UMA SALA';
-    };
-    input.oninput=update;
-    action.onclick=()=>{if (!action.disabled) hooks.portalToRoom(Number(input.value));};
-    label.append(input);panel.append(label,preview,action);
+    let selected=window.GAME_CHAPTERS[0];
+    const update=()=>{preview.textContent=selected.title+' · entrada na sala '+selected.start;
+      action.textContent='ENTRAR NO CONTO · SALA '+selected.start;};
+    action.onclick=()=>hooks.portalToRoom(selected.start);
+    panel.append(preview,action);
     const quick=document.createElement('div');quick.className='portal-grid';
-    for (let start=1;start<=191;start+=10) {
-      const end=start+9,button=document.createElement('button');
-      button.textContent=start+'–'+end;
-      button.title='Entrada na sala '+start;
-      button.onclick=()=>{input.value=String(end);update();};
+    for (const [index,chapter] of window.GAME_CHAPTERS.entries()) {
+      const button=document.createElement('button'),required=window.GAME_CHAPTERS[index-1]?.end;
+      button.textContent=chapter.title+' · '+chapter.start;
+      button.title=required&&!state.clearedBosses?.includes(required)?'Derrote o miniboss da sala '+required:'Entrada na sala '+chapter.start;
+      button.disabled=!!required&&!state.clearedBosses?.includes(required);
+      button.onclick=()=>{selected=chapter;update();quick.querySelectorAll('button').forEach(value=>value.classList.toggle('selected',value===button));};
       quick.append(button);
     }
     update();content.append(intro,panel,quick);
@@ -616,6 +616,16 @@ function createMeta(state, hooks) {
     gain.gain.setValueAtTime(.025,now);gain.gain.exponentialRampToValueAtTime(.0001,now+.2);
     oscillator.connect(gain).connect(audio.destination);oscillator.start(now);oscillator.stop(now+.21);
   }
+  const classChoices=$('profile-form').querySelector('.class-choices');
+  for(const [id,info] of Object.entries(CLASS_INFO)) {
+    if(id==='warrior'||id==='mage')continue;
+    const option=document.createElement('label'),radio=document.createElement('input');
+    radio.type='radio';radio.name='profile-class';radio.value=id;
+    const portrait=document.createElement('span');portrait.className='class-portrait '+id;portrait.setAttribute('aria-hidden','true');
+    const title=document.createElement('span');title.textContent=info.name;
+    const detail=document.createElement('small');detail.textContent=info.role;title.append(detail);
+    option.append(radio,portrait,title);classChoices.append(option);
+  }
   $('sound').onclick=()=>{
     soundOn=!soundOn;
     $('sound').classList.toggle('active',soundOn);
@@ -636,6 +646,13 @@ function createMeta(state, hooks) {
   $('window-close').onclick=closeWindow;
   $('window-backdrop').addEventListener('click',event=>{if(event.target===$('window-backdrop')) closeWindow();});
   $('new-profile').onclick=()=>openForm();
+  $('reset-profiles').onclick=()=>{
+    if(!window.confirm('Apagar os dois personagens e todo o progresso neste navegador? Esta ação não pode ser desfeita.'))return;
+    profiles=[];active=null;owned=new Set();inventory={};gear=emptyGear();potions={health:0,mana:0};
+    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem('eco-dos-seis-save-v3');localStorage.removeItem('eco-dos-seis-save-v2');
+    $('profile-form').hidden=true;renderProfiles();
+  };
   $('cancel-profile').onclick=closeForm;
   $('profile-form').onsubmit=createOrUpdate;
   $('profile-element').onchange=updateElementPreviews;

@@ -8,6 +8,8 @@ window.CREATURE_BOUNDS.rats=[
   [8,465,442,850],[445,475,866,850],[790,410,1335,855],[1310,408,1772,860]
 ];
 window.CREATURE_FEET.rats=[400,400,405,405,842,842,847,850];
+window.CREATURE_BOUNDS.dragon=[[0,0,1536,1005]];
+window.CREATURE_FEET.dragon=[995];
 window.CREATURE_MASKS={rats:[
   null,
   [[0,0],[.84,0],[.84,.53],[1,.60],[1,1],[0,1]],
