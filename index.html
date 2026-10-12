@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#172234">
+  <title>Eco dos Seis</title>
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body><main class="shell">
+  <header class="topbar">
+    <div class="brand"><span class="sigil">✦</span><div><small>ASCENSÃO · AVENTURA AUTOMÁTICA</small><h1>Eco dos Seis</h1></div></div>
+    <div class="place"><span id="area">VILA DO AMANHECER</span><b id="room">CIDADE</b></div>
+    <button id="switch-character" class="small-button" hidden>PERSONAGENS</button>
+    <button id="sound" class="icon-button" aria-label="Ativar música" title="Ativar música">♫</button>
+  </header>
+  <section class="stage" aria-label="Palco do jogo">
+    <canvas id="game" width="960" height="480" role="img" aria-label="Cena do jogo"></canvas>
+    <div class="stage-shade"></div>
+    <div class="status-top" id="status-top" hidden>
+      <div class="identity"><strong id="hero-name">Viajante</strong><span id="class-label">GUERREIRO</span><span>NÍV. <b id="level">1</b></span></div>
+      <div class="status-meters">
+        <div class="meter"><span>❤</span><div><i id="hpbar"></i></div><b id="hp">100/100</b></div>
+        <div class="meter"><span>✦</span><div><i id="manabar"></i></div><b id="mana">100/100</b></div>
+        <div class="meter xp-meter"><span>XP</span><div><i id="xpbar"></i></div><b id="xp">0/20</b></div>
+      </div>
+      <div class="status-values"><span>⚔ <b id="physical-attack">4</b></span><span>✧ <b id="magic-attack">4</b></span><span>🛡 <b id="physical-defense">0</b>/<b id="magical-defense">0</b></span><span>● <b id="gold">0</b> GOLD</span></div>
+    </div>
+    <div class="combat-readout" id="combat-readout" hidden><span>HERÓI <b id="hero-hit">0</b></span><span>MONSTRO F/M <b id="monster-hit">0/0</b></span><span>RECORDE <b id="depth">0</b></span></div>
+    <div class="target-card" id="target-card" hidden><strong id="target-name">Criatura</strong><span id="target-element">Elemento</span><span id="target-weakness">Fraqueza</span><small id="target-attack">Ataque F/M 0/0</small></div>
+    <div class="message-bar" id="message">Escolha um personagem para entrar na jornada.</div>
+    <section class="city-hub" id="city-hub" hidden aria-label="Preparação na cidade">
+      <div class="hub-title"><small>VILA DO AMANHECER</small><strong>Prepare sua jornada</strong></div>
+      <div class="hub-menu">
+        <button data-window="market"><span>⚒</span><b>Mercado</b></button>
+        <button data-window="bag"><span>▣</span><b>Bolsa</b></button>
+        <button data-window="skills"><span>✧</span><b>Skills</b><em id="skill-points-badge"></em></button>
+        <button data-window="defense"><span>⬟</span><b>Defesa</b><em id="defense-points-badge"></em></button>
+      </div>
+    </section>
+    <div class="controls-dock" id="controls-dock" hidden>
+      <button id="left" aria-label="Segure para voltar à esquerda">◀ VOLTAR</button>
+      <button id="run">RUN RIGHT ▶</button>
+      <button id="repeat" aria-pressed="false">↺ REPETIR <em id="repeat-state">OFF</em></button>
+    </div>
+    <div class="hotbar" id="hotbar" hidden aria-label="Dez atalhos para poções e futuras magias"></div>
+    <section class="window-backdrop" id="window-backdrop" hidden>
+      <div class="game-window" role="dialog" aria-modal="true" aria-labelledby="window-title">
+        <div class="window-head"><div><small>VILA DO AMANHECER</small><h2 id="window-title">Preparação</h2></div><button id="window-close" aria-label="Fechar janela">×</button></div>
+        <div id="window-content"></div>
+      </div>
+    </section>
+    <section class="character-screen" id="character-screen" aria-label="Seleção de personagem">
+      <div class="login-panel">
+        <div class="login-title"><small>RETORNO À JORNADA</small><h2>Escolha seu personagem</h2><p>Até dois heróis podem ser criados neste navegador.</p></div>
+        <div id="profile-list" class="profile-list"></div>
+        <button id="new-profile" class="new-profile">+ CRIAR PERSONAGEM</button>
+        <form id="profile-form" hidden>
+          <h3>Novo personagem</h3>
+          <label>Nome <input id="profile-name" maxlength="18" minlength="2" required placeholder="Nome do herói" autocomplete="off"></label>
+          <fieldset class="class-choices"><legend>Classe</legend><label><input type="radio" name="profile-class" value="warrior" checked><span class="class-portrait warrior" aria-hidden="true"></span><span>Guerreiro<small>Força e espada</small></span></label><label><input type="radio" name="profile-class" value="mage"><span class="class-portrait mage" aria-hidden="true"></span><span>Mago<small>Magia e cajado</small></span></label></fieldset>
+          <div class="element-choice"><label>Vantagem elemental <span class="element-select"><span id="advantage-icon" class="element-icon" aria-hidden="true"></span><select id="profile-element" required><option value="water">Água</option><option value="fire">Fogo</option><option value="earth">Terra</option><option value="air">Ar</option></select></span></label><label>Desvantagem elemental <span class="element-select"><span id="weakness-icon" class="element-icon" aria-hidden="true"></span><select id="profile-weakness" required><option value="fire">Fogo</option><option value="water">Água</option><option value="earth">Terra</option><option value="air">Ar</option></select></span></label></div>
+          <p class="form-hint">Seu elemento causa +10% de dano a criaturas fracas a ele. Você sofre +10% de criaturas do seu elemento de desvantagem.</p>
+          <p id="profile-error" class="form-error" role="alert"></p>
+          <div class="form-actions"><button type="button" id="cancel-profile">CANCELAR</button><button type="submit">CRIAR E ENTRAR</button></div>
+        </form>
+      </div>
+    </section>
+  </section>
+  <script src="src/meta.js"></script><script src="src/main.js"></script>
+</main></body></html>
